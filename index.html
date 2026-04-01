@@ -742,22 +742,34 @@ async function loadFBXFromFile(file) {
             if (c.geometry && c.geometry.attributes.position) {
               totalVerts += c.geometry.attributes.position.count;
             }
-            // Ensure material supports skinning (critical for skeletal animations)
-            // and upgrade to MeshStandardMaterial for PBR lighting
+            // Upgrade to MeshStandardMaterial with skinning + correct color space
             const isSkinned = c.isSkinnedMesh;
             const mats = Array.isArray(c.material) ? c.material : [c.material];
             const newMats = mats.map(m => {
               if (!m) return new THREE.MeshStandardMaterial({ color: 0xcccccc, skinning: isSkinned });
               const std = new THREE.MeshStandardMaterial();
-              if (m.color)      std.color.copy(m.color);
-              if (m.map)        { std.map = m.map; std.map.encoding = THREE.sRGBEncoding; }
-              if (m.normalMap)  std.normalMap = m.normalMap;
-              if (m.alphaMap)   std.alphaMap = m.alphaMap;
-              if (m.transparent) std.transparent = m.transparent;
-              if (m.opacity !== undefined) std.opacity = m.opacity;
-              std.roughness  = 0.7;
-              std.metalness  = 0.1;
-              std.skinning   = isSkinned;   // ← required for bone deformation
+
+              // FBXLoader stores colors in linear space. MeshStandardMaterial.color
+              // expects sRGB, so a direct copy makes colors appear nearly black.
+              // Pick the brightest available color source and convert.
+              const lum = col => col.r + col.g + col.b;
+              let src = null;
+              if (m.color    && lum(m.color)    > 0.05) src = m.color.clone();
+              else if (m.specular && lum(m.specular) > 0.05) src = m.specular.clone();
+              else if (m.emissive && lum(m.emissive) > 0.05) src = m.emissive.clone();
+              if (src) src.convertLinearToSRGB();
+              std.color.copy(src || new THREE.Color(0xcccccc));
+
+              if (m.map)           { std.map = m.map; std.map.encoding = THREE.sRGBEncoding; std.color.set(0xffffff); }
+              if (m.normalMap)     std.normalMap = m.normalMap;
+              if (m.alphaMap)      std.alphaMap  = m.alphaMap;
+              if (m.aoMap)         std.aoMap     = m.aoMap;
+              if (m.transparent)             std.transparent = m.transparent;
+              if (m.opacity !== undefined)   std.opacity     = m.opacity;
+              if (m.side   !== undefined)    std.side        = m.side;
+              std.roughness   = 0.75;
+              std.metalness   = 0.0;
+              std.skinning    = isSkinned;  // required for bone deformation
               std.needsUpdate = true;
               return std;
             });

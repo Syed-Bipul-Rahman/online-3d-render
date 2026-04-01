@@ -333,6 +333,213 @@
     text-align: center;
     margin-top: 6px;
   }
+
+  /* ── Left bone panel ────────────────────────────────────────────────── */
+  .bone-panel {
+    width: 220px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: none;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .bone-panel.visible { display: flex; }
+  .bone-panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .bone-panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bone-search {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    outline: none;
+    margin: 10px 16px 0;
+    width: calc(100% - 32px);
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+  .bone-search:focus { border-color: var(--accent); }
+  .bone-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .bone-group {
+    margin-bottom: 2px;
+  }
+  .bone-group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    cursor: pointer;
+    user-select: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color 0.15s;
+  }
+  .bone-group-header:hover { color: var(--text); }
+  .bone-group-arrow { font-size: 8px; transition: transform 0.2s; }
+  .bone-group-arrow.open { transform: rotate(90deg); }
+  .bone-group-children { display: none; }
+  .bone-group-children.open { display: block; }
+  .bone-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 16px 4px 26px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    transition: background 0.1s, color 0.1s;
+    border-radius: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bone-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .bone-item.selected { background: rgba(200,75,75,0.15); color: var(--accent2); }
+  .bone-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .bone-item.selected .bone-dot { background: var(--accent); }
+
+  /* ── Bone rotation panel (bottom of left panel) ─────────────────────── */
+  .bone-controls {
+    border-top: 1px solid var(--border);
+    padding: 14px 16px;
+    flex-shrink: 0;
+    display: none;
+  }
+  .bone-controls.visible { display: block; }
+  .bone-ctrl-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent2);
+    margin-bottom: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bone-axis-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .bone-axis-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: bold;
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .bone-axis-label.x { color: #ff6b6b; }
+  .bone-axis-label.y { color: #6bff8a; }
+  .bone-axis-label.z { color: #6bb3ff; }
+  .bone-axis-row input[type=range] {
+    flex: 1;
+    margin: 0;
+    height: 3px;
+    cursor: pointer;
+  }
+  .bone-axis-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .bone-reset-btn {
+    width: 100%;
+    padding: 6px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .bone-reset-btn:hover { border-color: var(--accent); color: var(--accent2); }
+  .bone-panel-btns {
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .bp-btn {
+    flex: 1;
+    padding: 5px 0;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .bp-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+  /* ── Bone overlay sprites ───────────────────────────────────────────── */
+  #bone-overlay-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* ── Viewport hint ──────────────────────────────────────────────────── */
+  #bone-mode-hint {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10,10,15,0.85);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent2);
+    pointer-events: none;
+    display: none;
+    z-index: 6;
+    white-space: nowrap;
+  }
+  #bone-mode-hint.visible { display: block; }
 </style>
 </head>
 <body>
@@ -346,8 +553,43 @@
 </header>
 
 <div class="main">
+  <!-- Bone / Pose controller panel -->
+  <div class="bone-panel" id="bone-panel">
+    <div class="bone-panel-header">
+      <span class="bone-panel-title">Bone Controller</span>
+      <button class="bp-btn" id="bone-panel-close" style="flex:unset;padding:2px 8px;font-size:10px;">✕</button>
+    </div>
+    <div class="bone-panel-btns">
+      <button class="bp-btn" id="bp-reset-all">Reset All</button>
+      <button class="bp-btn" id="bp-toggle-pick">Click-Pick</button>
+    </div>
+    <input class="bone-search" id="bone-search" type="text" placeholder="Search bone…">
+    <div class="bone-tree" id="bone-tree"></div>
+    <div class="bone-controls" id="bone-controls">
+      <div class="bone-ctrl-name" id="bone-ctrl-name">—</div>
+      <div class="bone-axis-row">
+        <span class="bone-axis-label x">X</span>
+        <input type="range" id="bone-rx" min="-180" max="180" step="0.5" value="0">
+        <span class="bone-axis-val" id="bone-rx-val">0°</span>
+      </div>
+      <div class="bone-axis-row">
+        <span class="bone-axis-label y">Y</span>
+        <input type="range" id="bone-ry" min="-180" max="180" step="0.5" value="0">
+        <span class="bone-axis-val" id="bone-ry-val">0°</span>
+      </div>
+      <div class="bone-axis-row">
+        <span class="bone-axis-label z">Z</span>
+        <input type="range" id="bone-rz" min="-180" max="180" step="0.5" value="0">
+        <span class="bone-axis-val" id="bone-rz-val">0°</span>
+      </div>
+      <button class="bone-reset-btn" id="bone-reset-single">Reset This Bone</button>
+    </div>
+  </div>
+
   <div id="canvas-container">
     <div class="grid-bg"></div>
+    <svg id="bone-overlay-svg"></svg>
+    <div id="bone-mode-hint">🖱 Click a bone to select</div>
     <div id="overlay">
       <div class="big-icon">⬡</div>
       <p>Load .obj · .glb · .gltf · .fbx</p>
@@ -387,6 +629,15 @@
         <div class="control-label" style="margin-bottom:4px;">Light intensity</div>
         <input type="range" id="light-range" min="0" max="4" step="0.1" value="1.5">
       </div>
+    </div>
+
+
+    <!-- Pose Editor toggle -->
+    <div class="section" id="pose-section" style="display:none;">
+      <div class="section-title">Pose Editor</div>
+      <button class="btn" id="open-pose-btn" style="background:linear-gradient(135deg,#d97706,#c84b4b);">
+        🦴 Open Bone Controller
+      </button>
     </div>
 
     <!-- FBX Animations -->
@@ -1116,6 +1367,11 @@ loadBtn.addEventListener('click', async () => {
   animActions = [];
   currentAction = null;
   document.getElementById('anim-section').style.display = 'none';
+  // Reset bone controller
+  allBones = []; boneOrigRots.clear(); boneUserRots.clear(); selectedBone = null;
+  boneControls.classList.remove('visible');
+  document.getElementById('pose-section').style.display = 'none';
+  bonePanel.classList.remove('visible');
 
   try {
     // ── FBX path ──────────────────────────────────────────────────────────
@@ -1148,6 +1404,7 @@ loadBtn.addEventListener('click', async () => {
       const modelName = files.fbx.name.replace(/\.fbx$/i, '');
       finalizeModel(model, modelName, size, totalTris, matSet.size || 1, 'fbx');
       setupAnimations(model);
+      initBoneController(model);
 
     // ── GLB / GLTF path ──────────────────────────────────────────────────
     } else if (files.glb || files.gltf) {
@@ -1323,6 +1580,294 @@ function doExport(binary) {
 
 document.getElementById('export-gltf-btn').addEventListener('click', () => doExport(false));
 document.getElementById('export-glb-btn').addEventListener('click', () => doExport(true));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BONE / POSE CONTROLLER
+// ══════════════════════════════════════════════════════════════════════════════
+
+const bonePanel      = document.getElementById('bone-panel');
+const boneTree       = document.getElementById('bone-tree');
+const boneSearch     = document.getElementById('bone-search');
+const boneControls   = document.getElementById('bone-controls');
+const boneCtrlName   = document.getElementById('bone-ctrl-name');
+const boneModeHint   = document.getElementById('bone-mode-hint');
+const boneOverlaySVG = document.getElementById('bone-overlay-svg');
+const boneRX = document.getElementById('bone-rx');
+const boneRY = document.getElementById('bone-ry');
+const boneRZ = document.getElementById('bone-rz');
+const boneRXVal = document.getElementById('bone-rx-val');
+const boneRYVal = document.getElementById('bone-ry-val');
+const boneRZVal = document.getElementById('bone-rz-val');
+
+let allBones       = [];
+let selectedBone   = null;
+let boneOrigRots   = new Map();
+let boneUserRots   = new Map();
+let bonePickMode   = false;
+let suppressSlider = false;
+
+const BONE_GROUPS = [
+  { key:'head',   label:'Head & Neck',  re:/head|neck|jaw|eye|ear|nose|cheek|brow|lip|tongue|teeth/i },
+  { key:'spine',  label:'Spine & Hips', re:/spine|hips?|pelvis|abdomen|chest|torso|clavicle|collar/i },
+  { key:'arm_l',  label:'Left Arm',     re:/left.*(arm|shoulder|elbow|forearm)|(arm|shoulder|elbow|forearm).*left|l_(arm|shoulder|elbow|forearm)|LeftArm|LeftForeArm|LeftShoulder/i },
+  { key:'arm_r',  label:'Right Arm',    re:/right.*(arm|shoulder|elbow|forearm)|(arm|shoulder|elbow|forearm).*right|r_(arm|shoulder|elbow|forearm)|RightArm|RightForeArm|RightShoulder/i },
+  { key:'hand_l', label:'Left Hand',    re:/left.*(hand|wrist|finger|thumb|index|middle|ring|pinky)|(hand|wrist|finger|thumb).*left|l_(hand|wrist)|LeftHand/i },
+  { key:'hand_r', label:'Right Hand',   re:/right.*(hand|wrist|finger|thumb|index|middle|ring|pinky)|(hand|wrist|finger|thumb).*right|r_(hand|wrist)|RightHand/i },
+  { key:'leg_l',  label:'Left Leg',     re:/left.*(leg|thigh|knee|shin|upleg)|(leg|thigh|knee|shin|upleg).*left|l_(leg|upleg)|LeftUpLeg|LeftLeg/i },
+  { key:'leg_r',  label:'Right Leg',    re:/right.*(leg|thigh|knee|shin|upleg)|(leg|thigh|knee|shin|upleg).*right|r_(leg|upleg)|RightUpLeg|RightLeg/i },
+  { key:'foot_l', label:'Left Foot',    re:/left.*(foot|ankle|toe)|(foot|ankle|toe).*left|l_foot|LeftFoot|LeftToeBase/i },
+  { key:'foot_r', label:'Right Foot',   re:/right.*(foot|ankle|toe)|(foot|ankle|toe).*right|r_foot|RightFoot|RightToeBase/i },
+  { key:'other',  label:'Other',        re:/.*/i },
+];
+
+const GROUP_ICONS = {
+  head:'head', spine:'spine', arm_l:'arm_l', arm_r:'arm_r',
+  hand_l:'hand_l', hand_r:'hand_r', leg_l:'leg_l', leg_r:'leg_r',
+  foot_l:'foot_l', foot_r:'foot_r', other:'other'
+};
+const GROUP_EMOJI = {
+  head:'👤', spine:'🦴', arm_l:'💪', arm_r:'💪',
+  hand_l:'✋', hand_r:'✋', leg_l:'🦵', leg_r:'🦵',
+  foot_l:'👟', foot_r:'👟', other:'⚙️'
+};
+
+function classifyBone(name) {
+  for (const g of BONE_GROUPS) {
+    if (g.re.test(name)) return g.key;
+  }
+  return 'other';
+}
+
+function buildBoneTree(filterText) {
+  boneTree.innerHTML = '';
+  if (!allBones.length) return;
+  const filter = (filterText || '').toLowerCase();
+  const groups = {};
+  BONE_GROUPS.forEach(g => { groups[g.key] = []; });
+  allBones.forEach(bone => {
+    if (filter && !bone.name.toLowerCase().includes(filter)) return;
+    groups[classifyBone(bone.name)].push(bone);
+  });
+  BONE_GROUPS.forEach(g => {
+    const bones = groups[g.key];
+    if (!bones.length) return;
+    const groupEl = document.createElement('div');
+    groupEl.className = 'bone-group';
+    const headerEl = document.createElement('div');
+    headerEl.className = 'bone-group-header';
+    const arrow = document.createElement('span');
+    arrow.className = 'bone-group-arrow open';
+    arrow.textContent = '▶';
+    headerEl.appendChild(arrow);
+    headerEl.appendChild(document.createTextNode(' ' + GROUP_EMOJI[g.key] + ' ' + g.label + ' (' + bones.length + ')'));
+    const childrenEl = document.createElement('div');
+    childrenEl.className = 'bone-group-children open';
+    headerEl.addEventListener('click', () => {
+      const open = childrenEl.classList.toggle('open');
+      arrow.classList.toggle('open', open);
+    });
+    bones.forEach(bone => {
+      const item = document.createElement('div');
+      item.className = 'bone-item' + (selectedBone === bone ? ' selected' : '');
+      item.dataset.uuid = bone.uuid;
+      const dot = document.createElement('span');
+      dot.className = 'bone-dot';
+      item.appendChild(dot);
+      item.appendChild(document.createTextNode(bone.name));
+      item.addEventListener('click', () => selectBone(bone));
+      childrenEl.appendChild(item);
+    });
+    groupEl.appendChild(headerEl);
+    groupEl.appendChild(childrenEl);
+    boneTree.appendChild(groupEl);
+  });
+}
+
+function selectBone(bone) {
+  selectedBone = bone;
+  boneTree.querySelectorAll('.bone-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.uuid === bone.uuid);
+  });
+  boneControls.classList.add('visible');
+  boneCtrlName.textContent = bone.name;
+  const ur = boneUserRots.get(bone.uuid) || { x:0, y:0, z:0 };
+  suppressSlider = true;
+  boneRX.value = ur.x; boneRXVal.textContent = ur.x.toFixed(1) + '\u00b0';
+  boneRY.value = ur.y; boneRYVal.textContent = ur.y.toFixed(1) + '\u00b0';
+  boneRZ.value = ur.z; boneRZVal.textContent = ur.z.toFixed(1) + '\u00b0';
+  suppressSlider = false;
+  const sel = boneTree.querySelector('.bone-item.selected');
+  if (sel) sel.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+
+function applyBoneRotation(bone, dx, dy, dz) {
+  const orig = boneOrigRots.get(bone.uuid);
+  if (!orig) return;
+  bone.quaternion.copy(orig);
+  const euler = new THREE.Euler(
+    THREE.MathUtils.degToRad(dx),
+    THREE.MathUtils.degToRad(dy),
+    THREE.MathUtils.degToRad(dz), 'XYZ'
+  );
+  bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(euler));
+}
+
+function onSliderChange() {
+  if (suppressSlider || !selectedBone) return;
+  const dx = parseFloat(boneRX.value);
+  const dy = parseFloat(boneRY.value);
+  const dz = parseFloat(boneRZ.value);
+  boneRXVal.textContent = dx.toFixed(1) + '\u00b0';
+  boneRYVal.textContent = dy.toFixed(1) + '\u00b0';
+  boneRZVal.textContent = dz.toFixed(1) + '\u00b0';
+  boneUserRots.set(selectedBone.uuid, { x:dx, y:dy, z:dz });
+  applyBoneRotation(selectedBone, dx, dy, dz);
+}
+boneRX.addEventListener('input', onSliderChange);
+boneRY.addEventListener('input', onSliderChange);
+boneRZ.addEventListener('input', onSliderChange);
+
+document.getElementById('bone-reset-single').addEventListener('click', () => {
+  if (!selectedBone) return;
+  boneUserRots.set(selectedBone.uuid, { x:0, y:0, z:0 });
+  const orig = boneOrigRots.get(selectedBone.uuid);
+  if (orig) selectedBone.quaternion.copy(orig);
+  suppressSlider = true;
+  boneRX.value = 0; boneRXVal.textContent = '0.0\u00b0';
+  boneRY.value = 0; boneRYVal.textContent = '0.0\u00b0';
+  boneRZ.value = 0; boneRZVal.textContent = '0.0\u00b0';
+  suppressSlider = false;
+});
+
+document.getElementById('bp-reset-all').addEventListener('click', () => {
+  allBones.forEach(bone => {
+    const orig = boneOrigRots.get(bone.uuid);
+    if (orig) bone.quaternion.copy(orig);
+    boneUserRots.set(bone.uuid, { x:0, y:0, z:0 });
+  });
+  if (selectedBone) {
+    suppressSlider = true;
+    boneRX.value = 0; boneRXVal.textContent = '0.0\u00b0';
+    boneRY.value = 0; boneRYVal.textContent = '0.0\u00b0';
+    boneRZ.value = 0; boneRZVal.textContent = '0.0\u00b0';
+    suppressSlider = false;
+  }
+});
+
+boneSearch.addEventListener('input', () => buildBoneTree(boneSearch.value));
+
+const pickModeBtn = document.getElementById('bp-toggle-pick');
+pickModeBtn.addEventListener('click', () => {
+  bonePickMode = !bonePickMode;
+  pickModeBtn.style.borderColor = bonePickMode ? 'var(--accent)' : '';
+  pickModeBtn.style.color       = bonePickMode ? 'var(--accent2)' : '';
+  boneModeHint.classList.toggle('visible', bonePickMode);
+  container.style.cursor = bonePickMode ? 'crosshair' : 'grab';
+});
+
+container.addEventListener('click', e => {
+  if (!bonePickMode || !allBones.length) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((e.clientX - rect.left) / rect.width)  *  2 - 1,
+    ((e.clientY - rect.top)  / rect.height) * -2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  let closestBone = null, closestDist = Infinity;
+  const wp = new THREE.Vector3();
+  allBones.forEach(bone => {
+    bone.getWorldPosition(wp);
+    const proj = wp.clone().project(camera);
+    const sd = Math.hypot(proj.x - mouse.x, proj.y - mouse.y);
+    const rd = raycaster.ray.distanceToPoint(wp);
+    if (sd < 0.09 && rd < closestDist) { closestDist = rd; closestBone = bone; }
+  });
+  if (closestBone) { selectBone(closestBone); flashBoneSVG(closestBone); }
+});
+
+function updateBoneOverlay() {
+  if (!bonePickMode || !allBones.length) { boneOverlaySVG.innerHTML = ''; return; }
+  const W = container.clientWidth, H = container.clientHeight;
+  boneOverlaySVG.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  boneOverlaySVG.innerHTML = '';
+  const wp = new THREE.Vector3();
+  allBones.forEach(bone => {
+    bone.getWorldPosition(wp);
+    const p = wp.clone().project(camera);
+    if (p.z > 1) return;
+    const sx = (p.x * 0.5 + 0.5) * W;
+    const sy = (-p.y * 0.5 + 0.5) * H;
+    const isSel = bone === selectedBone;
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', sx); c.setAttribute('cy', sy);
+    c.setAttribute('r',  isSel ? 7 : 4);
+    c.setAttribute('fill',         isSel ? '#e8a87c' : 'rgba(200,75,75,0.75)');
+    c.setAttribute('stroke',       isSel ? '#fff'    : 'rgba(255,255,255,0.3)');
+    c.setAttribute('stroke-width', isSel ? 1.5       : 1);
+    boneOverlaySVG.appendChild(c);
+  });
+}
+
+function flashBoneSVG(bone) {
+  const W = container.clientWidth, H = container.clientHeight;
+  const wp = new THREE.Vector3();
+  bone.getWorldPosition(wp);
+  const p = wp.clone().project(camera);
+  const sx = (p.x * 0.5 + 0.5) * W;
+  const sy = (-p.y * 0.5 + 0.5) * H;
+  const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  ring.setAttribute('cx', sx); ring.setAttribute('cy', sy);
+  ring.setAttribute('r', 14); ring.setAttribute('fill', 'none');
+  ring.setAttribute('stroke', '#e8a87c'); ring.setAttribute('stroke-width', 2);
+  ring.setAttribute('opacity', 1);
+  boneOverlaySVG.appendChild(ring);
+  let op = 1;
+  const fade = setInterval(() => {
+    op -= 0.06; ring.setAttribute('opacity', Math.max(0, op));
+    if (op <= 0) { clearInterval(fade); ring.remove(); }
+  }, 16);
+}
+
+// Hook overlay update into render loop
+const _renderOrig = renderer.render.bind(renderer);
+renderer.render = function(s, c) { _renderOrig(s, c); updateBoneOverlay(); };
+
+document.getElementById('open-pose-btn').addEventListener('click', () => {
+  bonePanel.classList.add('visible');
+});
+document.getElementById('bone-panel-close').addEventListener('click', () => {
+  bonePanel.classList.remove('visible');
+  bonePickMode = false;
+  pickModeBtn.style.borderColor = '';
+  pickModeBtn.style.color = '';
+  boneModeHint.classList.remove('visible');
+  container.style.cursor = 'grab';
+});
+
+function initBoneController(model) {
+  allBones = [];
+  boneOrigRots.clear();
+  boneUserRots.clear();
+  selectedBone = null;
+  boneControls.classList.remove('visible');
+  boneSearch.value = '';
+  model.traverse(obj => {
+    if (obj.isBone) {
+      allBones.push(obj);
+      boneOrigRots.set(obj.uuid, obj.quaternion.clone());
+      boneUserRots.set(obj.uuid, { x:0, y:0, z:0 });
+    }
+  });
+  if (allBones.length > 0) {
+    document.getElementById('pose-section').style.display = 'block';
+    buildBoneTree('');
+  } else {
+    document.getElementById('pose-section').style.display = 'none';
+    bonePanel.classList.remove('visible');
+  }
+}
+
 </script>
 </body>
 </html>

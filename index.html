@@ -153,6 +153,8 @@
   .file-item .ext.mtl { background: #4b7cc8; }
   .file-item .ext.png { background: #4bc87a; color: #000; }
   .file-item .ext.obj { background: var(--accent); }
+  .file-item .ext.glb { background: #8b5cf6; }
+  .file-item .ext.gltf { background: #7c3aed; }
 
   .file-item .fname { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .file-item .fstatus { margin-left: auto; color: #4bc87a; font-size: 13px; }
@@ -290,12 +292,26 @@
     background-size: 40px 40px;
     pointer-events: none;
   }
+
+  .format-badge {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .format-badge.obj { background: var(--accent); color: white; }
+  .format-badge.glb { background: #8b5cf6; color: white; }
+  .format-badge.gltf { background: #7c3aed; color: white; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo"><span>///</span> OBJ Viewer</div>
+  <div class="logo"><span>///</span> OBJ · GLB · GLTF Viewer</div>
   <div class="model-name" id="header-name">No model loaded</div>
   <div class="stats" id="header-stats">
     Drag files to load &nbsp;·&nbsp; Orbit: left drag &nbsp;·&nbsp; Zoom: scroll
@@ -307,7 +323,7 @@
     <div class="grid-bg"></div>
     <div id="overlay">
       <div class="big-icon">⬡</div>
-      <p>Load your .obj, .mtl and .png files</p>
+      <p>Load .obj/.mtl/.png  or  .glb/.gltf</p>
       <div id="loading-bar"><div id="loading-fill"></div></div>
     </div>
   </div>
@@ -317,9 +333,9 @@
     <div class="section">
       <div class="section-title">Files</div>
       <div class="upload-zone" id="drop-zone">
-        <input type="file" id="file-input" multiple accept=".obj,.mtl,.png,.jpg,.jpeg">
+        <input type="file" id="file-input" multiple accept=".obj,.mtl,.png,.jpg,.jpeg,.glb,.gltf,.bin">
         <div class="icon">📂</div>
-        <p><b>Click or drag & drop</b>.obj + .mtl + .png</p>
+        <p><b>Click or drag & drop</b>.obj + .mtl + .png<br>or .glb / .gltf (+ .bin)</p>
       </div>
       <div class="file-list" id="file-list" style="margin-top:10px;"></div>
       <button class="btn" id="load-btn" disabled>Load Model</button>
@@ -369,9 +385,12 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFMeshoptCompression.js"></script>
 <script>
 // ── GLTFExporter (self-contained, compatible with r128) ────────────────────
-// Minimal but complete implementation supporting geometry + texture
 THREE.GLTFExporter = class {
   parse(input, onDone, options = {}) {
     const binary = options.binary || false;
@@ -393,40 +412,15 @@ THREE.GLTFExporter = class {
       const bv = { buffer: 0, byteOffset, byteLength: buf.byteLength };
       gltf.bufferViews.push(bv);
       byteOffset += buf.byteLength;
-      // pad to 4 bytes
       const pad = (4 - (buf.byteLength % 4)) % 4;
       if (pad) { buffers.push(new Uint8Array(pad)); byteOffset += pad; }
       return gltf.bufferViews.length - 1;
     }
 
-    function addUint16Buffer(data) {
-      const arr = new Uint16Array(data);
-      buffers.push(arr);
-      const bv = { buffer: 0, byteOffset, byteLength: arr.buffer.byteLength };
-      gltf.bufferViews.push(bv);
-      byteOffset += arr.buffer.byteLength;
-      const pad = (4 - (arr.buffer.byteLength % 4)) % 4;
-      if (pad) { buffers.push(new Uint8Array(pad)); byteOffset += pad; }
-      return gltf.bufferViews.length - 1;
-    }
-
-    function addUint32Buffer(data) {
-      const arr = new Uint32Array(data);
-      buffers.push(arr);
-      const bv = { buffer: 0, byteOffset, byteLength: arr.buffer.byteLength };
-      gltf.bufferViews.push(bv);
-      byteOffset += arr.buffer.byteLength;
-      const pad = (4 - (arr.buffer.byteLength % 4)) % 4;
-      if (pad) { buffers.push(new Uint8Array(pad)); byteOffset += pad; }
-      return gltf.bufferViews.length - 1;
-    }
-
-    // Collect all meshes
+    const texMap = new Map();
     const meshNodes = [];
     scene.traverse(child => { if (child.isMesh) meshNodes.push(child); });
 
-    // Process textures - collect unique textures
-    const texMap = new Map();
     meshNodes.forEach(mesh => {
       const mat = mesh.material;
       if (mat && mat.map && !texMap.has(mat.map.uuid)) {
@@ -434,10 +428,8 @@ THREE.GLTFExporter = class {
       }
     });
 
-    // Add texture image data as base64
     const texPromises = [];
     texMap.forEach((idx, uuid) => {
-      // Find the texture object
       let tex = null;
       meshNodes.forEach(m => { if (m.material && m.material.map && m.material.map.uuid === uuid) tex = m.material.map; });
       if (!tex || !tex.image) return;
@@ -458,16 +450,14 @@ THREE.GLTFExporter = class {
     });
 
     Promise.all(texPromises).then(() => {
-      meshNodes.forEach((mesh, mi) => {
+      meshNodes.forEach((mesh) => {
         const geo = mesh.geometry;
         const mat = mesh.material;
         const posAttr = geo.attributes.position;
         const uvAttr = geo.attributes.uv;
         const norAttr = geo.attributes.normal;
 
-        // Position
         const posArr = Array.from(posAttr.array);
-        // Compute bounds
         let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity;
         for (let i=0;i<posArr.length;i+=3){
           minX=Math.min(minX,posArr[i]);minY=Math.min(minY,posArr[i+1]);minZ=Math.min(minZ,posArr[i+2]);
@@ -477,15 +467,13 @@ THREE.GLTFExporter = class {
         const posAcc = { bufferView: posBV, componentType: 5126, count: posAttr.count, type: 'VEC3', min:[minX,minY,minZ], max:[maxX,maxY,maxZ] };
         gltf.accessors.push(posAcc);
         const posAccIdx = gltf.accessors.length - 1;
-
         const attrs = { POSITION: posAccIdx };
 
         if (uvAttr) {
-          // GLTF spec: V=0 is top, Three.js: V=0 is bottom — flip V to match GLTF convention
           const uvFlipped = new Float32Array(uvAttr.array.length);
           for (let i = 0; i < uvAttr.array.length; i += 2) {
-            uvFlipped[i]     = uvAttr.array[i];       // U unchanged
-            uvFlipped[i + 1] = 1.0 - uvAttr.array[i + 1]; // V flipped
+            uvFlipped[i]     = uvAttr.array[i];
+            uvFlipped[i + 1] = 1.0 - uvAttr.array[i + 1];
           }
           const uvBV = addBuffer(uvFlipped);
           gltf.accessors.push({ bufferView: uvBV, componentType: 5126, count: uvAttr.count, type: 'VEC2' });
@@ -498,7 +486,6 @@ THREE.GLTFExporter = class {
           attrs.NORMAL = gltf.accessors.length - 1;
         }
 
-        // Material
         const gltfMat = { pbrMetallicRoughness: { metallicFactor: 0, roughnessFactor: mat.roughness || 0.75 } };
         if (mat.map && texMap.has(mat.map.uuid)) {
           gltfMat.pbrMetallicRoughness.baseColorTexture = { index: texMap.get(mat.map.uuid) };
@@ -507,13 +494,11 @@ THREE.GLTFExporter = class {
           gltfMat.pbrMetallicRoughness.baseColorFactor = [mat.color.r, mat.color.g, mat.color.b, 1];
         }
         gltf.materials.push(gltfMat);
-
         gltf.meshes.push({ primitives: [{ attributes: attrs, material: gltf.materials.length - 1, mode: 4 }] });
         gltf.nodes.push({ mesh: gltf.meshes.length - 1 });
         gltf.scenes[0].nodes.push(gltf.nodes.length - 1);
       });
 
-      // Combine all buffers
       const totalBytes = buffers.reduce((s, b) => s + (b.buffer || b).byteLength, 0);
       const combined = new Uint8Array(totalBytes);
       let offset = 0;
@@ -526,7 +511,6 @@ THREE.GLTFExporter = class {
       gltf.buffers = [{ byteLength: combined.byteLength }];
 
       if (binary) {
-        // GLB
         const jsonStr = JSON.stringify(gltf);
         const jsonBytes = new TextEncoder().encode(jsonStr);
         const jsonPadded = new Uint8Array(Math.ceil(jsonBytes.length / 4) * 4);
@@ -539,18 +523,17 @@ THREE.GLTFExporter = class {
         const totalLen = 12 + 8 + jsonPadded.length + 8 + binPadded.length;
         const glb = new DataView(new ArrayBuffer(totalLen));
         let o = 0;
-        glb.setUint32(o, 0x46546C67, true); o+=4; // magic "glTF"
-        glb.setUint32(o, 2, true); o+=4;           // version
-        glb.setUint32(o, totalLen, true); o+=4;    // total length
+        glb.setUint32(o, 0x46546C67, true); o+=4;
+        glb.setUint32(o, 2, true); o+=4;
+        glb.setUint32(o, totalLen, true); o+=4;
         glb.setUint32(o, jsonPadded.length, true); o+=4;
-        glb.setUint32(o, 0x4E4F534A, true); o+=4;  // JSON
+        glb.setUint32(o, 0x4E4F534A, true); o+=4;
         new Uint8Array(glb.buffer).set(jsonPadded, o); o += jsonPadded.length;
         glb.setUint32(o, binPadded.length, true); o+=4;
-        glb.setUint32(o, 0x004E4942, true); o+=4;  // BIN
+        glb.setUint32(o, 0x004E4942, true); o+=4;
         new Uint8Array(glb.buffer).set(binPadded, o);
         onDone(glb.buffer);
       } else {
-        // GLTF — embed buffer as base64
         const b64 = btoa(String.fromCharCode(...combined));
         gltf.buffers = [{ uri: 'data:application/octet-stream;base64,' + b64, byteLength: combined.byteLength }];
         onDone(JSON.stringify(gltf, null, 2));
@@ -581,7 +564,6 @@ class OBJLoader {
         if (!groups[currentMat]) groups[currentMat] = { pos: [], uv: [], nor: [] };
         const g = groups[currentMat];
         const verts = parts.slice(1);
-        // triangulate fan
         for (let i = 1; i < verts.length - 1; i++) {
           for (const vi of [verts[0], verts[i], verts[i+1]]) {
             const idx = vi.split('/');
@@ -634,6 +616,77 @@ function parseMTL(text) {
   return mats;
 }
 
+// ── GLTF/GLB Loader (wraps Three.js official GLTFLoader) ────────────────────
+// Handles standard GLB/GLTF, Draco compression, and Meshopt compression.
+async function loadGLTFFromFile(file, externalBuffers) {
+  const loader = new THREE.GLTFLoader();
+
+  // Draco compressed geometry
+  const dracoLoader = new THREE.DRACOLoader();
+  dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+  loader.setDRACOLoader(dracoLoader);
+
+  // Meshopt compression (EXT_meshopt_compression) — Meshy AI and many modern exporters use this.
+  // MeshoptDecoder is a WASM module; we must await its .ready promise before loading.
+  const rawDecoder = (typeof MeshoptDecoder !== 'undefined') ? MeshoptDecoder
+    : (typeof THREE.MeshoptDecoder !== 'undefined') ? THREE.MeshoptDecoder : null;
+  if (rawDecoder) {
+    try {
+      // .ready may be a Promise (WASM init) or already resolved
+      const decoder = (rawDecoder.ready instanceof Promise)
+        ? await rawDecoder.ready
+        : rawDecoder;
+      loader.setMeshoptDecoder(decoder || rawDecoder);
+    } catch(e) {
+      // If ready rejects, try passing the raw decoder anyway
+      loader.setMeshoptDecoder(rawDecoder);
+    }
+  }
+
+  // Map external .bin filenames to blob URLs so the loader can fetch them
+  const blobURLs = [];
+  if (externalBuffers && externalBuffers.size > 0) {
+    loader.manager.setURLModifier(url => {
+      const filename = decodeURIComponent(url.split('/').pop().split('\\').pop());
+      if (externalBuffers.has(filename)) {
+        const blob = new Blob([externalBuffers.get(filename)]);
+        const blobURL = URL.createObjectURL(blob);
+        blobURLs.push(blobURL);
+        return blobURL;
+      }
+      return url;
+    });
+  }
+
+  const objectURL = URL.createObjectURL(file);
+  blobURLs.push(objectURL);
+
+  return new Promise((resolve, reject) => {
+    loader.load(
+      objectURL,
+      (gltf) => {
+        blobURLs.forEach(u => URL.revokeObjectURL(u));
+        let totalVerts = 0;
+        gltf.scene.traverse(c => {
+          if (c.isMesh && c.geometry && c.geometry.attributes.position) {
+            totalVerts += c.geometry.attributes.position.count;
+            c.castShadow = true;
+            c.receiveShadow = true;
+          }
+        });
+        gltf.scene.userData.totalVerts = totalVerts;
+        resolve(gltf.scene);
+      },
+      undefined,
+      (err) => {
+        blobURLs.forEach(u => URL.revokeObjectURL(u));
+        reject(err instanceof ErrorEvent ? new Error(err.message) : err);
+      }
+    );
+  });
+}
+
+
 // ── Three.js Scene ─────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -652,7 +705,6 @@ scene.fog = new THREE.Fog(0x0a0a0f, 30, 80);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 200);
 camera.position.set(0, 1, 4);
 
-// Lights
 const ambient = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambient);
 
@@ -666,11 +718,9 @@ const fillLight = new THREE.DirectionalLight(0xffe8d0, 0.4);
 fillLight.position.set(-5, 2, -5);
 scene.add(fillLight);
 
-// Grid
 const grid = new THREE.GridHelper(20, 40, 0x222233, 0x1a1a28);
 scene.add(grid);
 
-// Orbit controls (manual)
 let isDragging = false, lastX = 0, lastY = 0;
 let rotX = 0, rotY = 0, zoom = 4;
 let autoRotate = true;
@@ -687,7 +737,6 @@ window.addEventListener('mousemove', e => {
 });
 container.addEventListener('wheel', e => { zoom = Math.max(0.5, zoom + e.deltaY * 0.005); }, { passive: true });
 
-// Touch
 let lastTouchX = 0, lastTouchY = 0;
 container.addEventListener('touchstart', e => { isDragging = true; lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY; autoRotate = false; });
 container.addEventListener('touchend', () => isDragging = false);
@@ -717,7 +766,8 @@ function animate() {
 animate();
 
 // ── File handling ──────────────────────────────────────────────────────────
-let files = { obj: null, mtl: null, png: null };
+let files = { obj: null, mtl: null, png: null, glb: null, gltf: null, bin: null };
+let loadedFormat = null; // 'obj' or 'gltf'
 
 const fileInput = document.getElementById('file-input');
 const fileList = document.getElementById('file-list');
@@ -728,37 +778,62 @@ const loadFill = document.getElementById('loading-fill');
 
 function updateFileList() {
   fileList.innerHTML = '';
-  const types = { obj: 'OBJ', mtl: 'MTL', png: 'PNG' };
-  for (const [k, label] of Object.entries(types)) {
-    const f = files[k];
+
+  // Show GLB/GLTF if present, otherwise show OBJ set
+  if (files.glb || files.gltf) {
+    const formatKey = files.glb ? 'glb' : 'gltf';
+    const f = files[formatKey];
     const item = document.createElement('div');
     item.className = 'file-item';
     item.innerHTML = `
-      <span class="ext ${k}">${label}</span>
-      <span class="fname">${f ? f.name : 'not loaded'}</span>
-      <span class="fstatus ${f ? '' : 'pending'}">${f ? '✓' : '○'}</span>
+      <span class="ext ${formatKey}">${formatKey.toUpperCase()}</span>
+      <span class="fname">${f.name}</span>
+      <span class="fstatus">✓</span>
     `;
     fileList.appendChild(item);
+  } else {
+    const types = { obj: 'OBJ', mtl: 'MTL', png: 'PNG' };
+    for (const [k, label] of Object.entries(types)) {
+      const f = files[k];
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `
+        <span class="ext ${k}">${label}</span>
+        <span class="fname">${f ? f.name : 'not loaded'}</span>
+        <span class="fstatus ${f ? '' : 'pending'}">${f ? '✓' : '○'}</span>
+      `;
+      fileList.appendChild(item);
+    }
   }
-  loadBtn.disabled = !files.obj;
+
+  loadBtn.disabled = !(files.obj || files.glb || files.gltf);
 }
 
 async function handleFiles(fileArr) {
+  let hasGLTFFormat = false;
   for (const f of fileArr) {
     const ext = f.name.split('.').pop().toLowerCase();
-    if (ext === 'obj') files.obj = f;
-    else if (ext === 'mtl') files.mtl = f;
+    if (ext === 'glb')  { files.glb = f; hasGLTFFormat = true; }
+    else if (ext === 'gltf') { files.gltf = f; hasGLTFFormat = true; }
+    else if (ext === 'bin')  files.bin = f;
+    else if (ext === 'obj')  files.obj = f;
+    else if (ext === 'mtl')  files.mtl = f;
     else if (['png','jpg','jpeg'].includes(ext)) files.png = f;
   }
+
+  // If a GLB/GLTF was dropped, clear OBJ slots to avoid confusion
+  if (hasGLTFFormat) {
+    files.obj = null; files.mtl = null; files.png = null;
+  }
+
   updateFileList();
-  // Show texture preview
+
   if (files.png) {
     const url = URL.createObjectURL(files.png);
     document.getElementById('tex-preview').src = url;
     document.getElementById('tex-section').style.display = 'block';
 
-    // If model already loaded, hot-swap the texture properly
-    if (currentModel) {
+    if (currentModel && loadedFormat === 'obj') {
       readFileURL(files.png).then(dataURL => {
         const newTex = new THREE.TextureLoader().load(dataURL, () => {
           newTex.encoding = THREE.sRGBEncoding;
@@ -802,108 +877,165 @@ function readFileURL(f) {
   });
 }
 
+function finalizeModel(model, modelName, size, totalTris, matCount, format) {
+  scene.add(model);
+  currentModel = model;
+  loadedFormat = format;
+
+  zoom = Math.max(size.x, size.y, size.z) * 2.5 / Math.max(size.x, size.y, size.z) * 2.2;
+  zoom = Math.max(size.x, size.y, size.z) * 1.0 * 2.2;
+  // Recalculate zoom from actual scale
+  const box2 = new THREE.Box3().setFromObject(model);
+  const s2 = box2.getSize(new THREE.Vector3());
+  zoom = Math.max(s2.x, s2.y, s2.z) * 2.2;
+
+  loadFill.style.width = '100%';
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    loadBar.classList.remove('active');
+    loadFill.style.width = '0%';
+  }, 400);
+
+  const formatBadge = `<span class="format-badge ${format}">${format.toUpperCase()}</span>`;
+  document.getElementById('header-name').innerHTML = modelName + formatBadge;
+  document.getElementById('header-stats').innerHTML = `
+    Vertices: <b>${(model.userData.totalVerts || 0).toLocaleString()}</b> &nbsp;·&nbsp;
+    Triangles: <b>${Math.round(totalTris).toLocaleString()}</b>
+  `;
+
+  document.getElementById('info-section').style.display = 'block';
+  document.getElementById('meta-rows').innerHTML = `
+    <div class="meta-row"><span class="k">format</span><span class="v">${format.toUpperCase()}</span></div>
+    <div class="meta-row"><span class="k">vertices</span><span class="v">${(model.userData.totalVerts || 0).toLocaleString()}</span></div>
+    <div class="meta-row"><span class="k">triangles</span><span class="v">${Math.round(totalTris).toLocaleString()}</span></div>
+    <div class="meta-row"><span class="k">size X</span><span class="v">${size.x.toFixed(2)}</span></div>
+    <div class="meta-row"><span class="k">size Y</span><span class="v">${size.y.toFixed(2)}</span></div>
+    <div class="meta-row"><span class="k">size Z</span><span class="v">${size.z.toFixed(2)}</span></div>
+    <div class="meta-row"><span class="k">materials</span><span class="v">${matCount}</span></div>
+  `;
+  document.getElementById('export-section').style.display = 'block';
+}
+
 loadBtn.addEventListener('click', async () => {
-  if (!files.obj) return;
+  if (!files.obj && !files.glb && !files.gltf) return;
   loadBtn.disabled = true;
   overlay.classList.remove('hidden');
   loadBar.classList.add('active');
   loadFill.style.width = '20%';
 
   try {
-    // Remove old model
     if (currentModel) { scene.remove(currentModel); currentModel = null; }
 
-    loadFill.style.width = '40%';
-    const objText = await readFile(files.obj);
-    loadFill.style.width = '60%';
-
-    const loader = new OBJLoader();
-    const model = loader.parse(objText);
-
-    // Apply texture
-    let texture = null;
-    if (files.png) {
-      const dataURL = await readFileURL(files.png);
-      texture = await new Promise(res => {
-        const t = new THREE.TextureLoader().load(dataURL, res);
-        t.encoding = THREE.sRGBEncoding;
-        t.flipY = true; // Meshy AI / standard OBJ exporters need flipY=true
-      });
-    }
-
-    // Apply MTL + texture to meshes
-    let mtlData = {};
-    if (files.mtl) {
-      const mtlText = await readFile(files.mtl);
-      mtlData = parseMTL(mtlText);
-    }
-
-    let totalTris = 0;
-    model.traverse(child => {
-      if (child.isMesh) {
-        const matName = child.userData.matName;
-        const matInfo = mtlData[matName] || {};
-        const mat = new THREE.MeshStandardMaterial({
-          map: texture || null,
-          // When a texture is present, always use white so it doesn't tint the atlas
-          color: texture ? 0xffffff : (matInfo.Kd ? new THREE.Color(...matInfo.Kd) : 0xcccccc),
-          roughness: 0.75,
-          metalness: 0.0,
-        });
-        if (texture) mat.needsUpdate = true;
-        child.material = mat;
-        totalTris += child.geometry.attributes.position.count / 3;
+    // ── GLB / GLTF path ──────────────────────────────────────────────────
+    if (files.glb || files.gltf) {
+      const file = files.glb || files.gltf;
+      const format = files.glb ? 'glb' : 'gltf';
+      loadFill.style.width = '40%';
+      let externalBuffers = new Map();
+      if (files.bin) {
+        const binBuf = await files.bin.arrayBuffer();
+        externalBuffers.set(files.bin.name, binBuf);
       }
-    });
+      const model = await loadGLTFFromFile(file, externalBuffers);
+      loadFill.style.width = '75%';
 
-    loadFill.style.width = '80%';
+      // Center + scale
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2.5 / maxDim;
+      model.scale.setScalar(scale);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center.multiplyScalar(scale));
+      model.position.y += size.y * scale / 2;
 
-    // Center and scale model
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = 2.5 / maxDim;
-    model.scale.setScalar(scale);
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center.multiplyScalar(scale));
-    model.position.y += size.y * scale / 2;
+      // Count triangles
+      let totalTris = 0;
+      let matCount = 0;
+      const matSet = new Set();
+      model.traverse(c => {
+        if (c.isMesh) {
+          const geo = c.geometry;
+          if (geo.index) totalTris += geo.index.count / 3;
+          else totalTris += (geo.attributes.position?.count || 0) / 3;
+          if (c.material) {
+            const mats = Array.isArray(c.material) ? c.material : [c.material];
+            mats.forEach(m => matSet.add(m.uuid));
+          }
+        }
+      });
+      matCount = matSet.size;
 
-    scene.add(model);
-    currentModel = model;
+      const modelName = file.name.replace(/\.(glb|gltf)$/i, '');
+      finalizeModel(model, modelName, size, totalTris, matCount || 1, format);
 
-    // Adjust zoom
-    zoom = maxDim * scale * 2.2;
+    // ── OBJ path ──────────────────────────────────────────────────────────
+    } else {
+      loadFill.style.width = '40%';
+      const objText = await readFile(files.obj);
+      loadFill.style.width = '60%';
 
-    loadFill.style.width = '100%';
-    setTimeout(() => {
-      overlay.classList.add('hidden');
-      loadBar.classList.remove('active');
-      loadFill.style.width = '0%';
-    }, 400);
+      const loader = new OBJLoader();
+      const model = loader.parse(objText);
 
-    // Update info
-    document.getElementById('header-name').textContent = files.obj.name.replace('.obj', '');
-    document.getElementById('header-stats').innerHTML = `
-      Vertices: <b>${model.userData.totalVerts?.toLocaleString() || '—'}</b> &nbsp;·&nbsp;
-      Triangles: <b>${Math.round(totalTris).toLocaleString()}</b>
-    `;
+      let texture = null;
+      if (files.png) {
+        const dataURL = await readFileURL(files.png);
+        texture = await new Promise(res => {
+          const t = new THREE.TextureLoader().load(dataURL, res);
+          t.encoding = THREE.sRGBEncoding;
+          t.flipY = true;
+        });
+      }
 
-    // Meta section
-    document.getElementById('info-section').style.display = 'block';
-    document.getElementById('meta-rows').innerHTML = `
-      <div class="meta-row"><span class="k">vertices</span><span class="v">${model.userData.totalVerts?.toLocaleString()}</span></div>
-      <div class="meta-row"><span class="k">triangles</span><span class="v">${Math.round(totalTris).toLocaleString()}</span></div>
-      <div class="meta-row"><span class="k">size X</span><span class="v">${size.x.toFixed(2)}</span></div>
-      <div class="meta-row"><span class="k">size Y</span><span class="v">${size.y.toFixed(2)}</span></div>
-      <div class="meta-row"><span class="k">size Z</span><span class="v">${size.z.toFixed(2)}</span></div>
-      <div class="meta-row"><span class="k">materials</span><span class="v">${Object.keys(mtlData).length || 1}</span></div>
-    `;
-    document.getElementById('export-section').style.display = 'block';
+      let mtlData = {};
+      if (files.mtl) {
+        const mtlText = await readFile(files.mtl);
+        mtlData = parseMTL(mtlText);
+      }
+
+      let totalTris = 0;
+      model.traverse(child => {
+        if (child.isMesh) {
+          const matName = child.userData.matName;
+          const matInfo = mtlData[matName] || {};
+          const mat = new THREE.MeshStandardMaterial({
+            map: texture || null,
+            color: texture ? 0xffffff : (matInfo.Kd ? new THREE.Color(...matInfo.Kd) : 0xcccccc),
+            roughness: 0.75,
+            metalness: 0.0,
+          });
+          if (texture) mat.needsUpdate = true;
+          child.material = mat;
+          totalTris += child.geometry.attributes.position.count / 3;
+        }
+      });
+
+      loadFill.style.width = '80%';
+
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2.5 / maxDim;
+      model.scale.setScalar(scale);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center.multiplyScalar(scale));
+      model.position.y += size.y * scale / 2;
+
+      const modelName = files.obj.name.replace('.obj', '');
+      finalizeModel(model, modelName, size, totalTris, Object.keys(mtlData).length || 1, 'obj');
+
+      if (files.png) {
+        document.getElementById('tex-preview').src = URL.createObjectURL(files.png);
+        document.getElementById('tex-section').style.display = 'block';
+      }
+    }
 
   } catch (err) {
     console.error(err);
     alert('Error loading model: ' + err.message);
     overlay.classList.remove('hidden');
+    loadBar.classList.remove('active');
   }
 
   loadBtn.disabled = false;
@@ -932,29 +1064,21 @@ document.getElementById('light-range').addEventListener('input', function() {
   ambient.intensity = +this.value * 0.27;
 });
 
-// ── Show export section after model loads ──────────────────────────────────
-// (called inside loadBtn click, patched here via model load completion)
-const _origLoadBtn = loadBtn.onclick;
-
-function showExportSection() {
-  document.getElementById('export-section').style.display = 'block';
-}
-
-// ── GLTF / GLB Export ─────────────────────────────────────────────────────
 function doExport(binary) {
   if (!currentModel) return;
   const status = document.getElementById('export-status');
   status.textContent = 'Exporting…';
 
-  // Build a clean scene with only the model (no grid/lights)
   const exportScene = new THREE.Scene();
-  const clone = currentModel.clone(true);
-  // Reset transforms that were applied for display centering/scaling
-  exportScene.add(clone);
+  exportScene.add(currentModel.clone(true));
 
   const exporter = new THREE.GLTFExporter();
   exporter.parse(exportScene, (result) => {
-    const modelName = (files.obj ? files.obj.name.replace('.obj','') : 'model');
+    let modelName = 'model';
+    if (files.glb) modelName = files.glb.name.replace('.glb','');
+    else if (files.gltf) modelName = files.gltf.name.replace('.gltf','');
+    else if (files.obj) modelName = files.obj.name.replace('.obj','');
+
     if (binary) {
       const blob = new Blob([result], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);

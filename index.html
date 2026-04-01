@@ -155,6 +155,7 @@
   .file-item .ext.obj { background: var(--accent); }
   .file-item .ext.glb { background: #8b5cf6; }
   .file-item .ext.gltf { background: #7c3aed; }
+  .file-item .ext.fbx { background: #d97706; }
 
   .file-item .fname { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .file-item .fstatus { margin-left: auto; color: #4bc87a; font-size: 13px; }
@@ -303,15 +304,41 @@
     margin-left: 6px;
     vertical-align: middle;
   }
-  .format-badge.obj { background: var(--accent); color: white; }
-  .format-badge.glb { background: #8b5cf6; color: white; }
+  .format-badge.obj  { background: var(--accent); color: white; }
+  .format-badge.glb  { background: #8b5cf6; color: white; }
   .format-badge.gltf { background: #7c3aed; color: white; }
+  .format-badge.fbx  { background: #d97706; color: white; }
+
+  /* FBX animation controls */
+  #anim-section { display: none; }
+  .anim-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+  .anim-btn {
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .anim-btn:hover { background: rgba(200,75,75,0.1); border-color: var(--accent); }
+  .anim-btn.active { background: rgba(200,75,75,0.2); border-color: var(--accent); color: var(--accent2); }
+  .anim-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 6px;
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo"><span>///</span> OBJ · GLB · GLTF Viewer</div>
+  <div class="logo"><span>///</span> OBJ · GLB · GLTF · FBX</div>
   <div class="model-name" id="header-name">No model loaded</div>
   <div class="stats" id="header-stats">
     Drag files to load &nbsp;·&nbsp; Orbit: left drag &nbsp;·&nbsp; Zoom: scroll
@@ -323,7 +350,7 @@
     <div class="grid-bg"></div>
     <div id="overlay">
       <div class="big-icon">⬡</div>
-      <p>Load .obj/.mtl/.png  or  .glb/.gltf</p>
+      <p>Load .obj · .glb · .gltf · .fbx</p>
       <div id="loading-bar"><div id="loading-fill"></div></div>
     </div>
   </div>
@@ -333,9 +360,9 @@
     <div class="section">
       <div class="section-title">Files</div>
       <div class="upload-zone" id="drop-zone">
-        <input type="file" id="file-input" multiple accept=".obj,.mtl,.png,.jpg,.jpeg,.glb,.gltf,.bin">
+        <input type="file" id="file-input" multiple accept=".obj,.mtl,.png,.jpg,.jpeg,.glb,.gltf,.bin,.fbx">
         <div class="icon">📂</div>
-        <p><b>Click or drag & drop</b>.obj + .mtl + .png<br>or .glb / .gltf (+ .bin)</p>
+        <p><b>Click or drag & drop</b>.obj / .glb / .gltf<br>or <b>.fbx</b> (animations supported)</p>
       </div>
       <div class="file-list" id="file-list" style="margin-top:10px;"></div>
       <button class="btn" id="load-btn" disabled>Load Model</button>
@@ -362,6 +389,17 @@
       </div>
     </div>
 
+    <!-- FBX Animations -->
+    <div class="section" id="anim-section">
+      <div class="section-title">Animations</div>
+      <div class="anim-list" id="anim-list"></div>
+      <div class="control-row">
+        <span class="control-label">Play</span>
+        <button class="toggle on" id="toggle-anim"></button>
+      </div>
+      <div class="anim-time" id="anim-time">0.00s / 0.00s</div>
+    </div>
+
     <!-- Texture preview -->
     <div class="section" id="tex-section" style="display:none;">
       <div class="section-title">Texture Atlas</div>
@@ -384,11 +422,17 @@
   </div>
 </div>
 
+<!-- Three.js core -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Official loaders -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFMeshoptCompression.js"></script>
+<!-- FBX loader + its dependency -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+
 <script>
 // ── GLTFExporter (self-contained, compatible with r128) ────────────────────
 THREE.GLTFExporter = class {
@@ -453,6 +497,7 @@ THREE.GLTFExporter = class {
       meshNodes.forEach((mesh) => {
         const geo = mesh.geometry;
         const mat = mesh.material;
+        if (!geo || !geo.attributes.position) return;
         const posAttr = geo.attributes.position;
         const uvAttr = geo.attributes.uv;
         const norAttr = geo.attributes.normal;
@@ -486,11 +531,11 @@ THREE.GLTFExporter = class {
           attrs.NORMAL = gltf.accessors.length - 1;
         }
 
-        const gltfMat = { pbrMetallicRoughness: { metallicFactor: 0, roughnessFactor: mat.roughness || 0.75 } };
-        if (mat.map && texMap.has(mat.map.uuid)) {
+        const gltfMat = { pbrMetallicRoughness: { metallicFactor: 0, roughnessFactor: (mat && mat.roughness) || 0.75 } };
+        if (mat && mat.map && texMap.has(mat.map.uuid)) {
           gltfMat.pbrMetallicRoughness.baseColorTexture = { index: texMap.get(mat.map.uuid) };
         }
-        if (mat.color) {
+        if (mat && mat.color) {
           gltfMat.pbrMetallicRoughness.baseColorFactor = [mat.color.r, mat.color.g, mat.color.b, 1];
         }
         gltf.materials.push(gltfMat);
@@ -542,6 +587,7 @@ THREE.GLTFExporter = class {
   }
 };
 </script>
+
 <script>
 // ── Minimal OBJLoader ──────────────────────────────────────────────────────
 class OBJLoader {
@@ -616,34 +662,25 @@ function parseMTL(text) {
   return mats;
 }
 
-// ── GLTF/GLB Loader (wraps Three.js official GLTFLoader) ────────────────────
-// Handles standard GLB/GLTF, Draco compression, and Meshopt compression.
+// ── GLTF/GLB Loader ──────────────────────────────────────────────────────
 async function loadGLTFFromFile(file, externalBuffers) {
   const loader = new THREE.GLTFLoader();
 
-  // Draco compressed geometry
   const dracoLoader = new THREE.DRACOLoader();
   dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
   loader.setDRACOLoader(dracoLoader);
 
-  // Meshopt compression (EXT_meshopt_compression) — Meshy AI and many modern exporters use this.
-  // MeshoptDecoder is a WASM module; we must await its .ready promise before loading.
   const rawDecoder = (typeof MeshoptDecoder !== 'undefined') ? MeshoptDecoder
     : (typeof THREE.MeshoptDecoder !== 'undefined') ? THREE.MeshoptDecoder : null;
   if (rawDecoder) {
     try {
-      // .ready may be a Promise (WASM init) or already resolved
-      const decoder = (rawDecoder.ready instanceof Promise)
-        ? await rawDecoder.ready
-        : rawDecoder;
+      const decoder = (rawDecoder.ready instanceof Promise) ? await rawDecoder.ready : rawDecoder;
       loader.setMeshoptDecoder(decoder || rawDecoder);
     } catch(e) {
-      // If ready rejects, try passing the raw decoder anyway
       loader.setMeshoptDecoder(rawDecoder);
     }
   }
 
-  // Map external .bin filenames to blob URLs so the loader can fetch them
   const blobURLs = [];
   if (externalBuffers && externalBuffers.size > 0) {
     loader.manager.setURLModifier(url => {
@@ -686,6 +723,65 @@ async function loadGLTFFromFile(file, externalBuffers) {
   });
 }
 
+// ── FBX Loader ───────────────────────────────────────────────────────────
+async function loadFBXFromFile(file) {
+  const loader = new THREE.FBXLoader();
+  const objectURL = URL.createObjectURL(file);
+
+  return new Promise((resolve, reject) => {
+    loader.load(
+      objectURL,
+      (fbx) => {
+        URL.revokeObjectURL(objectURL);
+
+        let totalVerts = 0;
+        fbx.traverse(c => {
+          if (c.isMesh) {
+            c.castShadow = true;
+            c.receiveShadow = true;
+            if (c.geometry && c.geometry.attributes.position) {
+              totalVerts += c.geometry.attributes.position.count;
+            }
+            // Ensure material supports skinning (critical for skeletal animations)
+            // and upgrade to MeshStandardMaterial for PBR lighting
+            const isSkinned = c.isSkinnedMesh;
+            const mats = Array.isArray(c.material) ? c.material : [c.material];
+            const newMats = mats.map(m => {
+              if (!m) return new THREE.MeshStandardMaterial({ color: 0xcccccc, skinning: isSkinned });
+              const std = new THREE.MeshStandardMaterial();
+              if (m.color)      std.color.copy(m.color);
+              if (m.map)        { std.map = m.map; std.map.encoding = THREE.sRGBEncoding; }
+              if (m.normalMap)  std.normalMap = m.normalMap;
+              if (m.alphaMap)   std.alphaMap = m.alphaMap;
+              if (m.transparent) std.transparent = m.transparent;
+              if (m.opacity !== undefined) std.opacity = m.opacity;
+              std.roughness  = 0.7;
+              std.metalness  = 0.1;
+              std.skinning   = isSkinned;   // ← required for bone deformation
+              std.needsUpdate = true;
+              return std;
+            });
+            c.material = Array.isArray(c.material) ? newMats : newMats[0];
+          }
+        });
+
+        fbx.userData.totalVerts = totalVerts;
+
+        // Expose animations
+        if (fbx.animations && fbx.animations.length > 0) {
+          fbx.userData.animations = fbx.animations;
+        }
+
+        resolve(fbx);
+      },
+      undefined,
+      (err) => {
+        URL.revokeObjectURL(objectURL);
+        reject(err instanceof ErrorEvent ? new Error(err.message) : err);
+      }
+    );
+  });
+}
 
 // ── Three.js Scene ─────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
@@ -726,7 +822,18 @@ let rotX = 0, rotY = 0, zoom = 4;
 let autoRotate = true;
 let currentModel = null;
 
-container.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; autoRotate = false; document.getElementById('toggle-rotate').classList.remove('on'); });
+// ── Animation mixer ─────────────────────────────────────────────────────
+let mixer = null;
+let animActions = [];
+let currentAction = null;
+let animPlaying = true;
+const clock = new THREE.Clock();
+
+container.addEventListener('mousedown', e => {
+  isDragging = true; lastX = e.clientX; lastY = e.clientY;
+  autoRotate = false;
+  document.getElementById('toggle-rotate').classList.remove('on');
+});
 window.addEventListener('mouseup', () => isDragging = false);
 window.addEventListener('mousemove', e => {
   if (!isDragging) return;
@@ -761,35 +868,49 @@ function animate() {
   camera.position.y = Math.sin(rx) * zoom;
   camera.position.z = Math.cos(ry) * Math.cos(rx) * zoom;
   camera.lookAt(0, 0.5, 0);
+
+  // Always consume delta — never call getDelta() anywhere else
+  const delta = clock.getDelta();
+  if (mixer) {
+    mixer.update(delta);
+    // Update time display
+    if (currentAction) {
+      const clip = currentAction.getClip();
+      const t = currentAction.time.toFixed(2);
+      const d = clip.duration.toFixed(2);
+      document.getElementById('anim-time').textContent = `${t}s / ${d}s`;
+    }
+  }
+
   renderer.render(scene, camera);
 }
 animate();
 
-// ── File handling ──────────────────────────────────────────────────────────
-let files = { obj: null, mtl: null, png: null, glb: null, gltf: null, bin: null };
-let loadedFormat = null; // 'obj' or 'gltf'
+// ── File handling ─────────────────────────────────────────────────────────
+let files = { obj: null, mtl: null, png: null, glb: null, gltf: null, bin: null, fbx: null };
+let loadedFormat = null;
 
 const fileInput = document.getElementById('file-input');
-const fileList = document.getElementById('file-list');
-const loadBtn = document.getElementById('load-btn');
-const overlay = document.getElementById('overlay');
-const loadBar = document.getElementById('loading-bar');
-const loadFill = document.getElementById('loading-fill');
+const fileList  = document.getElementById('file-list');
+const loadBtn   = document.getElementById('load-btn');
+const overlay   = document.getElementById('overlay');
+const loadBar   = document.getElementById('loading-bar');
+const loadFill  = document.getElementById('loading-fill');
 
 function updateFileList() {
   fileList.innerHTML = '';
 
-  // Show GLB/GLTF if present, otherwise show OBJ set
-  if (files.glb || files.gltf) {
+  if (files.fbx) {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.innerHTML = `<span class="ext fbx">FBX</span><span class="fname">${files.fbx.name}</span><span class="fstatus">✓</span>`;
+    fileList.appendChild(item);
+  } else if (files.glb || files.gltf) {
     const formatKey = files.glb ? 'glb' : 'gltf';
     const f = files[formatKey];
     const item = document.createElement('div');
     item.className = 'file-item';
-    item.innerHTML = `
-      <span class="ext ${formatKey}">${formatKey.toUpperCase()}</span>
-      <span class="fname">${f.name}</span>
-      <span class="fstatus">✓</span>
-    `;
+    item.innerHTML = `<span class="ext ${formatKey}">${formatKey.toUpperCase()}</span><span class="fname">${f.name}</span><span class="fstatus">✓</span>`;
     fileList.appendChild(item);
   } else {
     const types = { obj: 'OBJ', mtl: 'MTL', png: 'PNG' };
@@ -806,29 +927,28 @@ function updateFileList() {
     }
   }
 
-  loadBtn.disabled = !(files.obj || files.glb || files.gltf);
+  loadBtn.disabled = !(files.obj || files.glb || files.gltf || files.fbx);
 }
 
 async function handleFiles(fileArr) {
-  let hasGLTFFormat = false;
+  let hasFBX = false, hasGLTF = false;
   for (const f of fileArr) {
     const ext = f.name.split('.').pop().toLowerCase();
-    if (ext === 'glb')  { files.glb = f; hasGLTFFormat = true; }
-    else if (ext === 'gltf') { files.gltf = f; hasGLTFFormat = true; }
-    else if (ext === 'bin')  files.bin = f;
-    else if (ext === 'obj')  files.obj = f;
-    else if (ext === 'mtl')  files.mtl = f;
+    if (ext === 'fbx')        { files.fbx = f; hasFBX = true; }
+    else if (ext === 'glb')   { files.glb = f; hasGLTF = true; }
+    else if (ext === 'gltf')  { files.gltf = f; hasGLTF = true; }
+    else if (ext === 'bin')   files.bin = f;
+    else if (ext === 'obj')   files.obj = f;
+    else if (ext === 'mtl')   files.mtl = f;
     else if (['png','jpg','jpeg'].includes(ext)) files.png = f;
   }
 
-  // If a GLB/GLTF was dropped, clear OBJ slots to avoid confusion
-  if (hasGLTFFormat) {
-    files.obj = null; files.mtl = null; files.png = null;
-  }
+  if (hasFBX)        { files.obj = null; files.mtl = null; files.png = null; files.glb = null; files.gltf = null; }
+  else if (hasGLTF)  { files.obj = null; files.mtl = null; files.png = null; files.fbx = null; }
 
   updateFileList();
 
-  if (files.png) {
+  if (files.png && !files.fbx && !files.glb && !files.gltf) {
     const url = URL.createObjectURL(files.png);
     document.getElementById('tex-preview').src = url;
     document.getElementById('tex-section').style.display = 'block';
@@ -877,14 +997,66 @@ function readFileURL(f) {
   });
 }
 
+// ── Build animation sidebar ───────────────────────────────────────────────
+function setupAnimations(fbxObject) {
+  // FBXLoader attaches clips directly to fbxObject.animations
+  const anims = fbxObject.animations || fbxObject.userData.animations || [];
+  const animSection = document.getElementById('anim-section');
+  const animList    = document.getElementById('anim-list');
+
+  if (anims.length === 0) { animSection.style.display = 'none'; return; }
+
+  animSection.style.display = 'block';
+  animList.innerHTML = '';
+  animActions = [];
+
+  // Create mixer on the scene-added root object
+  mixer = new THREE.AnimationMixer(fbxObject);
+  mixer.timeScale = 1;
+
+  // Reset clock so first delta isn't huge
+  clock.getDelta();
+
+  anims.forEach((clip, i) => {
+    const action = mixer.clipAction(clip);
+    action.loop = THREE.LoopRepeat;
+    animActions.push(action);
+
+    const btn = document.createElement('button');
+    btn.className = 'anim-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = clip.name || `Animation ${i + 1}`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.anim-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (currentAction && currentAction !== action) {
+        currentAction.fadeOut(0.2);
+        action.reset().fadeIn(0.2).play();
+      }
+      currentAction = action;
+    });
+    animList.appendChild(btn);
+  });
+
+  // Auto-play first animation immediately
+  currentAction = animActions[0];
+  currentAction.reset().play();
+
+  document.getElementById('toggle-anim').classList.add('on');
+  animPlaying = true;
+}
+
+document.getElementById('toggle-anim').addEventListener('click', function() {
+  this.classList.toggle('on');
+  animPlaying = this.classList.contains('on');
+  if (mixer) mixer.timeScale = animPlaying ? 1 : 0;
+});
+
+// ── Finalize model ────────────────────────────────────────────────────────
 function finalizeModel(model, modelName, size, totalTris, matCount, format) {
   scene.add(model);
   currentModel = model;
   loadedFormat = format;
 
-  zoom = Math.max(size.x, size.y, size.z) * 2.5 / Math.max(size.x, size.y, size.z) * 2.2;
-  zoom = Math.max(size.x, size.y, size.z) * 1.0 * 2.2;
-  // Recalculate zoom from actual scale
   const box2 = new THREE.Box3().setFromObject(model);
   const s2 = box2.getSize(new THREE.Vector3());
   zoom = Math.max(s2.x, s2.y, s2.z) * 2.2;
@@ -904,6 +1076,7 @@ function finalizeModel(model, modelName, size, totalTris, matCount, format) {
   `;
 
   document.getElementById('info-section').style.display = 'block';
+  const animCount = (model.userData.animations || []).length;
   document.getElementById('meta-rows').innerHTML = `
     <div class="meta-row"><span class="k">format</span><span class="v">${format.toUpperCase()}</span></div>
     <div class="meta-row"><span class="k">vertices</span><span class="v">${(model.userData.totalVerts || 0).toLocaleString()}</span></div>
@@ -912,22 +1085,60 @@ function finalizeModel(model, modelName, size, totalTris, matCount, format) {
     <div class="meta-row"><span class="k">size Y</span><span class="v">${size.y.toFixed(2)}</span></div>
     <div class="meta-row"><span class="k">size Z</span><span class="v">${size.z.toFixed(2)}</span></div>
     <div class="meta-row"><span class="k">materials</span><span class="v">${matCount}</span></div>
+    ${animCount > 0 ? `<div class="meta-row"><span class="k">animations</span><span class="v">${animCount}</span></div>` : ''}
   `;
   document.getElementById('export-section').style.display = 'block';
 }
 
+// ── Load button ────────────────────────────────────────────────────────────
 loadBtn.addEventListener('click', async () => {
-  if (!files.obj && !files.glb && !files.gltf) return;
+  if (!files.obj && !files.glb && !files.gltf && !files.fbx) return;
   loadBtn.disabled = true;
   overlay.classList.remove('hidden');
   loadBar.classList.add('active');
   loadFill.style.width = '20%';
 
+  // Clean up previous model & mixer
+  if (currentModel) { scene.remove(currentModel); currentModel = null; }
+  if (mixer)        { mixer.stopAllAction(); mixer = null; }
+  animActions = [];
+  currentAction = null;
+  document.getElementById('anim-section').style.display = 'none';
+
   try {
-    if (currentModel) { scene.remove(currentModel); currentModel = null; }
+    // ── FBX path ──────────────────────────────────────────────────────────
+    if (files.fbx) {
+      loadFill.style.width = '40%';
+      const model = await loadFBXFromFile(files.fbx);
+      loadFill.style.width = '75%';
+
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2.5 / maxDim;
+      model.scale.setScalar(scale);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center.multiplyScalar(scale));
+      model.position.y += size.y * scale / 2;
+
+      let totalTris = 0;
+      const matSet = new Set();
+      model.traverse(c => {
+        if (c.isMesh) {
+          const geo = c.geometry;
+          if (geo.index) totalTris += geo.index.count / 3;
+          else totalTris += (geo.attributes.position?.count || 0) / 3;
+          const mats = Array.isArray(c.material) ? c.material : [c.material];
+          mats.forEach(m => m && matSet.add(m.uuid));
+        }
+      });
+
+      const modelName = files.fbx.name.replace(/\.fbx$/i, '');
+      finalizeModel(model, modelName, size, totalTris, matSet.size || 1, 'fbx');
+      setupAnimations(model);
 
     // ── GLB / GLTF path ──────────────────────────────────────────────────
-    if (files.glb || files.gltf) {
+    } else if (files.glb || files.gltf) {
       const file = files.glb || files.gltf;
       const format = files.glb ? 'glb' : 'gltf';
       loadFill.style.width = '40%';
@@ -939,7 +1150,6 @@ loadBtn.addEventListener('click', async () => {
       const model = await loadGLTFFromFile(file, externalBuffers);
       loadFill.style.width = '75%';
 
-      // Center + scale
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
@@ -949,7 +1159,6 @@ loadBtn.addEventListener('click', async () => {
       model.position.sub(center.multiplyScalar(scale));
       model.position.y += size.y * scale / 2;
 
-      // Count triangles
       let totalTris = 0;
       let matCount = 0;
       const matSet = new Set();
@@ -1042,7 +1251,7 @@ loadBtn.addEventListener('click', async () => {
   updateFileList();
 });
 
-// Toggle controls
+// ── Toggle controls ─────────────────────────────────────────────────────────
 document.getElementById('toggle-wire').addEventListener('click', function() {
   this.classList.toggle('on');
   const on = this.classList.contains('on');
@@ -1064,6 +1273,7 @@ document.getElementById('light-range').addEventListener('input', function() {
   ambient.intensity = +this.value * 0.27;
 });
 
+// ── Export ───────────────────────────────────────────────────────────────────
 function doExport(binary) {
   if (!currentModel) return;
   const status = document.getElementById('export-status');
@@ -1075,9 +1285,10 @@ function doExport(binary) {
   const exporter = new THREE.GLTFExporter();
   exporter.parse(exportScene, (result) => {
     let modelName = 'model';
-    if (files.glb) modelName = files.glb.name.replace('.glb','');
+    if (files.fbx)       modelName = files.fbx.name.replace('.fbx','');
+    else if (files.glb)  modelName = files.glb.name.replace('.glb','');
     else if (files.gltf) modelName = files.gltf.name.replace('.gltf','');
-    else if (files.obj) modelName = files.obj.name.replace('.obj','');
+    else if (files.obj)  modelName = files.obj.name.replace('.obj','');
 
     if (binary) {
       const blob = new Blob([result], { type: 'application/octet-stream' });
